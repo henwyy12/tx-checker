@@ -1,110 +1,175 @@
 import React, { useState } from 'react';
 import { Search, ExternalLink, CheckCircle, XCircle, Clock, Copy, Check, Loader2, ChevronDown } from 'lucide-react';
 
+// RPC endpoints for EVM chains
+const EVM_RPC = {
+  eth: 'https://eth.llamarpc.com',
+  bsc: 'https://bsc-dataseed.binance.org',
+  bep20: 'https://bsc-dataseed.binance.org',
+  erc20: 'https://eth.llamarpc.com',
+};
+
 // Rizzy supported coins and their networks (from deposit options)
 const COINS = [
-  { 
-    id: 'btc', 
-    name: 'BTC', 
+  {
+    id: 'btc',
+    name: 'BTC',
     fullName: 'Bitcoin',
     networks: [
-      { id: 'btc', name: 'BTC', explorer: 'https://mempool.space/tx/', api: 'https://mempool.space/api/tx/' }
+      { id: 'btc', name: 'BTC', explorer: 'https://mempool.space/tx/', api: 'https://mempool.space/api/tx/', type: 'btc' }
     ]
   },
-  { 
-    id: 'eth', 
-    name: 'ETH', 
+  {
+    id: 'eth',
+    name: 'ETH',
     fullName: 'Ethereum',
     networks: [
-      { id: 'eth', name: 'ETH', explorer: 'https://etherscan.io/tx/' }
+      { id: 'eth', name: 'ETH', explorer: 'https://etherscan.io/tx/', type: 'evm', decimals: 18, symbol: 'ETH' }
     ]
   },
-  { 
-    id: 'usdt', 
-    name: 'USDT', 
+  {
+    id: 'usdt',
+    name: 'USDT',
     fullName: 'Tether',
     networks: [
-      { id: 'bep20', name: 'BNB Smart Chain (BEP20)', explorer: 'https://bscscan.com/tx/' },
-      { id: 'erc20', name: 'Ethereum (ERC20)', explorer: 'https://etherscan.io/tx/' },
-      { id: 'sol', name: 'Solana (SOL)', explorer: 'https://solscan.io/tx/' },
-      { id: 'trc20', name: 'Tron (TRC20)', explorer: 'https://tronscan.org/#/transaction/' },
-      { id: 'ton', name: 'The Open Network (TON)', explorer: 'https://tonscan.org/tx/' },
+      { id: 'bep20', name: 'BNB Smart Chain (BEP20)', explorer: 'https://bscscan.com/tx/', type: 'evm', decimals: 18, symbol: 'USDT' },
+      { id: 'erc20', name: 'Ethereum (ERC20)', explorer: 'https://etherscan.io/tx/', type: 'evm', decimals: 6, symbol: 'USDT' },
+      { id: 'sol', name: 'Solana (SOL)', explorer: 'https://solscan.io/tx/', type: 'solana' },
+      { id: 'trc20', name: 'Tron (TRC20)', explorer: 'https://tronscan.org/#/transaction/', type: 'tron' },
+      { id: 'ton', name: 'The Open Network (TON)', explorer: 'https://tonscan.org/tx/', type: 'ton' },
     ]
   },
-  { 
-    id: 'usdc', 
-    name: 'USDC', 
+  {
+    id: 'usdc',
+    name: 'USDC',
     fullName: 'USD Coin',
     networks: [
-      { id: 'erc20', name: 'Ethereum (ERC20)', explorer: 'https://etherscan.io/tx/' },
-      { id: 'sol', name: 'Solana (SOL)', explorer: 'https://solscan.io/tx/' },
+      { id: 'erc20', name: 'Ethereum (ERC20)', explorer: 'https://etherscan.io/tx/', type: 'evm', decimals: 6, symbol: 'USDC' },
+      { id: 'sol', name: 'Solana (SOL)', explorer: 'https://solscan.io/tx/', type: 'solana' },
     ]
   },
-  { 
-    id: 'bnb', 
-    name: 'BNB', 
+  {
+    id: 'bnb',
+    name: 'BNB',
     fullName: 'BNB',
     networks: [
-      { id: 'bsc', name: 'BNB', explorer: 'https://bscscan.com/tx/' }
+      { id: 'bsc', name: 'BNB', explorer: 'https://bscscan.com/tx/', type: 'evm', decimals: 18, symbol: 'BNB' }
     ]
   },
-  { 
-    id: 'sol', 
-    name: 'SOL', 
+  {
+    id: 'sol',
+    name: 'SOL',
     fullName: 'Solana',
     networks: [
-      { id: 'sol', name: 'SOL', explorer: 'https://solscan.io/tx/' }
+      { id: 'sol', name: 'SOL', explorer: 'https://solscan.io/tx/', type: 'solana' }
     ]
   },
-  { 
-    id: 'trx', 
-    name: 'TRX', 
+  {
+    id: 'trx',
+    name: 'TRX',
     fullName: 'Tron',
     networks: [
-      { id: 'trx', name: 'TRX', explorer: 'https://tronscan.org/#/transaction/' }
+      { id: 'trx', name: 'TRX', explorer: 'https://tronscan.org/#/transaction/', type: 'tron' }
     ]
   },
-  { 
-    id: 'ton', 
-    name: 'TON', 
+  {
+    id: 'ton',
+    name: 'TON',
     fullName: 'Toncoin',
     networks: [
-      { id: 'ton', name: 'TON', explorer: 'https://tonscan.org/tx/' }
+      { id: 'ton', name: 'TON', explorer: 'https://tonscan.org/tx/', type: 'ton' }
     ]
   },
-  { 
-    id: 'ltc', 
-    name: 'LTC', 
+  {
+    id: 'ltc',
+    name: 'LTC',
     fullName: 'Litecoin',
     networks: [
-      { id: 'ltc', name: 'LTC', explorer: 'https://blockchair.com/litecoin/transaction/' }
+      { id: 'ltc', name: 'LTC', explorer: 'https://blockchair.com/litecoin/transaction/', type: 'utxo' }
     ]
   },
-  { 
-    id: 'doge', 
-    name: 'DOGE', 
+  {
+    id: 'doge',
+    name: 'DOGE',
     fullName: 'Dogecoin',
     networks: [
-      { id: 'doge', name: 'DOGE', explorer: 'https://blockchair.com/dogecoin/transaction/' }
+      { id: 'doge', name: 'DOGE', explorer: 'https://blockchair.com/dogecoin/transaction/', type: 'utxo' }
     ]
   },
-  { 
-    id: 'xrp', 
-    name: 'XRP', 
+  {
+    id: 'xrp',
+    name: 'XRP',
     fullName: 'XRP',
     networks: [
-      { id: 'xrp', name: 'XRP', explorer: 'https://xrpscan.com/tx/' }
+      { id: 'xrp', name: 'XRP', explorer: 'https://xrpscan.com/tx/', type: 'xrp' }
     ]
   },
-  { 
-    id: 'dai', 
-    name: 'DAI', 
+  {
+    id: 'dai',
+    name: 'DAI',
     fullName: 'Dai',
     networks: [
-      { id: 'erc20', name: 'DAI (ERC20)', explorer: 'https://etherscan.io/tx/' }
+      { id: 'erc20', name: 'DAI (ERC20)', explorer: 'https://etherscan.io/tx/', type: 'evm', decimals: 18, symbol: 'DAI' }
     ]
   },
 ];
+
+// Helper to fetch EVM transaction
+async function fetchEvmTransaction(txHash, networkId) {
+  const rpcUrl = EVM_RPC[networkId];
+  if (!rpcUrl) return null;
+
+  try {
+    // Fetch transaction details
+    const txResponse = await fetch(rpcUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'eth_getTransactionByHash',
+        params: [txHash],
+        id: 1,
+      }),
+    });
+    const txData = await txResponse.json();
+
+    if (!txData.result) return { found: false };
+
+    // Fetch receipt for status
+    const receiptResponse = await fetch(rpcUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'eth_getTransactionReceipt',
+        params: [txHash],
+        id: 2,
+      }),
+    });
+    const receiptData = await receiptResponse.json();
+
+    const tx = txData.result;
+    const receipt = receiptData.result;
+
+    // Convert value from hex to decimal (wei)
+    const valueWei = BigInt(tx.value || '0x0');
+    const valueEth = Number(valueWei) / 1e18;
+
+    return {
+      found: true,
+      confirmed: receipt !== null,
+      success: receipt ? receipt.status === '0x1' : null,
+      from: tx.from,
+      to: tx.to,
+      value: valueEth,
+      blockNumber: receipt ? parseInt(receipt.blockNumber, 16) : null,
+      gasUsed: receipt ? parseInt(receipt.gasUsed, 16) : null,
+    };
+  } catch (err) {
+    console.error('EVM fetch error:', err);
+    return null;
+  }
+}
 
 export default function App() {
   const [selectedCoin, setSelectedCoin] = useState('btc');
@@ -140,12 +205,12 @@ export default function App() {
 
   const checkTransaction = async () => {
     if (!txid.trim()) return;
-    
+
     setLoading(true);
     setStatus(null);
 
     // For BTC we can fetch from mempool.space API
-    if (selectedCoin === 'btc' && network?.api) {
+    if (network?.type === 'btc' && network?.api) {
       try {
         const response = await fetch(`${network.api}${txid}`);
         if (response.ok) {
@@ -153,13 +218,15 @@ export default function App() {
           const confirmed = data.status?.confirmed;
           const blockHeight = data.status?.block_height;
           const confirmations = blockHeight ? 'Confirmed in block ' + blockHeight : null;
-          
+
           setStatus({
             found: true,
             confirmed: confirmed,
+            success: confirmed,
             confirmations: confirmations,
             fee: data.fee,
             size: data.size,
+            networkType: 'btc',
           });
         } else if (response.status === 404) {
           setStatus({ found: false, error: 'Transaction not found on blockchain' });
@@ -169,11 +236,35 @@ export default function App() {
       } catch (err) {
         setStatus({ found: null, error: 'Failed to fetch - check explorer manually' });
       }
+    } else if (network?.type === 'evm') {
+      // EVM chains (ETH, BSC, etc.)
+      try {
+        const result = await fetchEvmTransaction(txid, network.id);
+        if (result === null) {
+          setStatus({ found: null, error: 'API error - check explorer manually' });
+        } else if (!result.found) {
+          setStatus({ found: false, error: 'Transaction not found on blockchain' });
+        } else {
+          setStatus({
+            found: true,
+            confirmed: result.confirmed,
+            success: result.success,
+            from: result.from,
+            to: result.to,
+            value: result.value,
+            blockNumber: result.blockNumber,
+            symbol: network.symbol || 'ETH',
+            networkType: 'evm',
+          });
+        }
+      } catch (err) {
+        setStatus({ found: null, error: 'Failed to fetch - check explorer manually' });
+      }
     } else {
       // For other networks, just provide the link
       setStatus({ found: null, message: 'Open explorer to check status' });
     }
-    
+
     setLoading(false);
   };
 
@@ -323,14 +414,61 @@ export default function App() {
                 <div className="flex-1">
                   {status.found === true && (
                     <>
-                      <p className={`font-medium ${status.confirmed ? 'text-emerald-400' : 'text-yellow-400'}`}>
-                        {status.confirmed ? 'Confirmed ✓' : 'Pending / Unconfirmed'}
-                      </p>
+                      {/* Status Line */}
+                      <div className="flex items-center gap-2">
+                        <p className={`font-medium ${
+                          status.confirmed
+                            ? status.success !== false ? 'text-emerald-400' : 'text-red-400'
+                            : 'text-yellow-400'
+                        }`}>
+                          {!status.confirmed
+                            ? 'Pending / Unconfirmed'
+                            : status.success !== false
+                              ? 'Success ✓'
+                              : 'Failed ✗'}
+                        </p>
+                      </div>
+
+                      {/* BTC specific info */}
                       {status.confirmations && (
                         <p className="text-sm text-zinc-400 mt-1">{status.confirmations}</p>
                       )}
                       {status.fee && (
                         <p className="text-sm text-zinc-400">Fee: {status.fee.toLocaleString()} sats</p>
+                      )}
+
+                      {/* EVM specific info - From/To/Value */}
+                      {status.networkType === 'evm' && (
+                        <div className="mt-2 space-y-1.5">
+                          {status.blockNumber && (
+                            <p className="text-sm text-zinc-400">Block: {status.blockNumber.toLocaleString()}</p>
+                          )}
+                          {status.from && (
+                            <div className="text-sm">
+                              <span className="text-zinc-500">From: </span>
+                              <span className="text-zinc-300 font-mono text-xs">{status.from}</span>
+                            </div>
+                          )}
+                          {status.to && (
+                            <div className="text-sm">
+                              <span className="text-zinc-500">To: </span>
+                              <span className="text-zinc-300 font-mono text-xs">{status.to}</span>
+                            </div>
+                          )}
+                          {status.value !== undefined && status.value > 0 && (
+                            <div className="text-sm">
+                              <span className="text-zinc-500">Value: </span>
+                              <span className="text-zinc-300">{status.value.toFixed(6)} {status.symbol}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {status.confirmed && (
+                        <div className="mt-3 pt-3 border-t border-zinc-700">
+                          <p className="text-sm text-amber-400 font-medium">⚠️ Next Step:</p>
+                          <p className="text-sm text-zinc-300 mt-1">Transaction confirmed on blockchain. Check the user's transaction page in Admin Panel to verify deposit was credited.</p>
+                        </div>
                       )}
                     </>
                   )}
@@ -346,6 +484,12 @@ export default function App() {
                     <>
                       <p className="text-zinc-300">{status.message || status.error}</p>
                       <p className="text-sm text-zinc-500 mt-1">Click "Open Explorer" to view full transaction details</p>
+                      {status.message && (
+                        <div className="mt-3 pt-3 border-t border-zinc-700">
+                          <p className="text-sm text-amber-400 font-medium">⚠️ Reminder:</p>
+                          <p className="text-sm text-zinc-300 mt-1">After confirming on explorer, check the user's transaction page in Admin Panel to verify deposit was credited.</p>
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
