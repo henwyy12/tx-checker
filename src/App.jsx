@@ -9,7 +9,7 @@ const COINS = [
     name: 'BTC',
     fullName: 'Bitcoin',
     networks: [
-      { id: 'btc', name: 'BTC', explorer: 'https://mempool.space/tx/', api: 'https://mempool.space/api/tx/', type: 'btc' }
+      { id: 'btc', name: 'BTC', explorer: 'https://www.blockchain.com/btc/tx/', api: 'https://blockchain.info/rawtx/', type: 'btc' }
     ]
   },
   {
@@ -159,27 +159,26 @@ export default function App() {
     setLoading(true);
     setStatus(null);
 
-    // For BTC we can fetch from mempool.space API
-    if (network?.type === 'btc' && network?.api) {
+    // For BTC we fetch via serverless API (blockchain.info)
+    if (network?.type === 'btc') {
       try {
-        const response = await fetch(`${network.api}${txid}`);
+        const response = await fetch(`/api/check-tx?txHash=${txid}&network=btc`);
         if (response.ok) {
           const data = await response.json();
-          const confirmed = data.status?.confirmed;
-          const blockHeight = data.status?.block_height;
-          const confirmations = blockHeight ? 'Confirmed in block ' + blockHeight : null;
-
-          setStatus({
-            found: true,
-            confirmed: confirmed,
-            success: confirmed,
-            confirmations: confirmations,
-            fee: data.fee,
-            size: data.size,
-            networkType: 'btc',
-          });
-        } else if (response.status === 404) {
-          setStatus({ found: false, error: 'Transaction not found on blockchain' });
+          if (!data.found) {
+            setStatus({ found: false, error: 'Transaction not found on blockchain' });
+          } else {
+            const confirmations = data.blockHeight ? 'Confirmed in block ' + data.blockHeight.toLocaleString() : null;
+            setStatus({
+              found: true,
+              confirmed: data.confirmed,
+              success: data.success,
+              confirmations: confirmations,
+              fee: data.fee,
+              size: data.size,
+              networkType: 'btc',
+            });
+          }
         } else {
           setStatus({ found: null, error: 'API error - check explorer manually' });
         }

@@ -1,5 +1,5 @@
-// Vercel serverless function to fetch EVM transaction data
-// This avoids CORS issues with public RPC endpoints
+// Vercel serverless function to fetch transaction data
+// This avoids CORS issues with public APIs
 
 const EVM_RPC = {
   eth: 'https://eth.llamarpc.com',
@@ -24,6 +24,36 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing txHash or network parameter' });
   }
 
+  // Handle BTC via blockchain.info
+  if (network === 'btc') {
+    try {
+      const response = await fetch(`https://blockchain.info/rawtx/${txHash}`);
+      if (!response.ok) {
+        if (response.status === 404 || response.status === 500) {
+          return res.status(200).json({ found: false });
+        }
+        return res.status(500).json({ error: 'API error' });
+      }
+
+      const data = await response.json();
+      const confirmed = data.block_height !== undefined;
+
+      return res.status(200).json({
+        found: true,
+        confirmed: confirmed,
+        success: confirmed,
+        blockHeight: data.block_height,
+        fee: data.fee,
+        size: data.size,
+        networkType: 'btc',
+      });
+    } catch (err) {
+      console.error('BTC fetch error:', err);
+      return res.status(500).json({ error: 'Failed to fetch transaction data' });
+    }
+  }
+
+  // Handle EVM chains
   const rpcUrl = EVM_RPC[network];
   if (!rpcUrl) {
     return res.status(400).json({ error: 'Unsupported network' });
@@ -76,6 +106,7 @@ export default async function handler(req, res) {
       value: valueEth,
       blockNumber: receipt ? parseInt(receipt.blockNumber, 16) : null,
       gasUsed: receipt ? parseInt(receipt.gasUsed, 16) : null,
+      networkType: 'evm',
     });
   } catch (err) {
     console.error('RPC fetch error:', err);
