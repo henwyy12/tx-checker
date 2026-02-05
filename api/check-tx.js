@@ -34,6 +34,27 @@ export default async function handler(req, res) {
       const data = await response.json();
       const confirmed = data.block_height !== undefined;
 
+      // Extract first input address (sender)
+      let from = null;
+      if (data.inputs && data.inputs.length > 0 && data.inputs[0].prev_out) {
+        from = data.inputs[0].prev_out.addr;
+      }
+
+      // Extract outputs (receivers) - get the main one (usually largest non-change)
+      let to = null;
+      let value = 0;
+      if (data.out && data.out.length > 0) {
+        // Sum all outputs for total value, get first output address
+        for (const out of data.out) {
+          value += out.value || 0;
+          if (!to && out.addr) {
+            to = out.addr;
+          }
+        }
+        // Convert satoshis to BTC
+        value = value / 1e8;
+      }
+
       return res.status(200).json({
         found: true,
         confirmed: confirmed,
@@ -41,6 +62,9 @@ export default async function handler(req, res) {
         blockHeight: data.block_height,
         fee: data.fee,
         size: data.size,
+        from: from,
+        to: to,
+        value: value,
         networkType: 'btc',
       });
     }
