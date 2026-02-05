@@ -1,13 +1,6 @@
 import React, { useState } from 'react';
 import { Search, ExternalLink, CheckCircle, XCircle, Clock, Copy, Check, Loader2, ChevronDown } from 'lucide-react';
 
-// RPC endpoints for EVM chains
-const EVM_RPC = {
-  eth: 'https://eth.llamarpc.com',
-  bsc: 'https://bsc-dataseed.binance.org',
-  bep20: 'https://bsc-dataseed.binance.org',
-  erc20: 'https://eth.llamarpc.com',
-};
 
 // Rizzy supported coins and their networks (from deposit options)
 const COINS = [
@@ -114,57 +107,14 @@ const COINS = [
   },
 ];
 
-// Helper to fetch EVM transaction
+// Helper to fetch EVM transaction via serverless API (avoids CORS)
 async function fetchEvmTransaction(txHash, networkId) {
-  const rpcUrl = EVM_RPC[networkId];
-  if (!rpcUrl) return null;
-
   try {
-    // Fetch transaction details
-    const txResponse = await fetch(rpcUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        method: 'eth_getTransactionByHash',
-        params: [txHash],
-        id: 1,
-      }),
-    });
-    const txData = await txResponse.json();
-
-    if (!txData.result) return { found: false };
-
-    // Fetch receipt for status
-    const receiptResponse = await fetch(rpcUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        method: 'eth_getTransactionReceipt',
-        params: [txHash],
-        id: 2,
-      }),
-    });
-    const receiptData = await receiptResponse.json();
-
-    const tx = txData.result;
-    const receipt = receiptData.result;
-
-    // Convert value from hex to decimal (wei)
-    const valueWei = BigInt(tx.value || '0x0');
-    const valueEth = Number(valueWei) / 1e18;
-
-    return {
-      found: true,
-      confirmed: receipt !== null,
-      success: receipt ? receipt.status === '0x1' : null,
-      from: tx.from,
-      to: tx.to,
-      value: valueEth,
-      blockNumber: receipt ? parseInt(receipt.blockNumber, 16) : null,
-      gasUsed: receipt ? parseInt(receipt.gasUsed, 16) : null,
-    };
+    const response = await fetch(`/api/check-tx?txHash=${txHash}&network=${networkId}`);
+    if (!response.ok) {
+      return null;
+    }
+    return await response.json();
   } catch (err) {
     console.error('EVM fetch error:', err);
     return null;
