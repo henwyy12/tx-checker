@@ -467,9 +467,9 @@ export default function App() {
                     />
                   )}
 
-                  {/* Fee info for BTC/LTC/DOGE */}
-                  {status.fee && (
-                    <InfoRow label="Fee" value={`${status.fee.toLocaleString()} sats`} />
+                  {/* Confirmations */}
+                  {status.confirmations !== undefined && status.confirmations > 0 && (
+                    <InfoRow label="Confirmations" value={status.confirmations.toLocaleString()} />
                   )}
 
                   {/* From/To addresses (all networks that have them) */}

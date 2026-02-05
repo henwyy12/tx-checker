@@ -27,12 +27,24 @@ export default async function handler(req, res) {
   try {
     // Handle BTC via blockchain.info
     if (network === 'btc') {
-      const response = await fetch(`https://blockchain.info/rawtx/${txHash}`);
-      if (!response.ok) {
+      // Fetch transaction and current block height in parallel
+      const [txResponse, heightResponse] = await Promise.all([
+        fetch(`https://blockchain.info/rawtx/${txHash}`),
+        fetch('https://blockchain.info/q/getblockcount')
+      ]);
+
+      if (!txResponse.ok) {
         return res.status(200).json({ found: false });
       }
-      const data = await response.json();
+      const data = await txResponse.json();
       const confirmed = data.block_height !== undefined;
+
+      // Calculate confirmations
+      let confirmations = 0;
+      if (confirmed && heightResponse.ok) {
+        const currentHeight = await heightResponse.json();
+        confirmations = currentHeight - data.block_height + 1;
+      }
 
       // Extract first input address (sender)
       let from = null;
@@ -44,14 +56,12 @@ export default async function handler(req, res) {
       let to = null;
       let value = 0;
       if (data.out && data.out.length > 0) {
-        // Sum all outputs for total value, get first output address
         for (const out of data.out) {
           value += out.value || 0;
           if (!to && out.addr) {
             to = out.addr;
           }
         }
-        // Convert satoshis to BTC
         value = value / 1e8;
       }
 
@@ -60,8 +70,7 @@ export default async function handler(req, res) {
         confirmed: confirmed,
         success: confirmed,
         blockHeight: data.block_height,
-        fee: data.fee,
-        size: data.size,
+        confirmations: confirmations,
         from: from,
         to: to,
         value: value,
