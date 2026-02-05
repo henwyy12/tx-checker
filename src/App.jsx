@@ -242,61 +242,65 @@ export default function App() {
     setLoading(true);
     setStatus(null);
 
-    // For BTC we fetch via serverless API
-    if (network?.type === 'btc') {
-      try {
-        const response = await fetch(`/api/check-tx?txHash=${txid}&network=btc`);
-        if (response.ok) {
-          const data = await response.json();
-          if (!data.found) {
-            setStatus({ found: false, error: 'Transaction not found on blockchain' });
-          } else {
-            setStatus({
-              found: true,
-              confirmed: data.confirmed,
-              success: data.success,
-              blockHeight: data.blockHeight,
-              fee: data.fee,
-              size: data.size,
-              networkType: 'btc',
-            });
-          }
-        } else {
-          setStatus({ found: null, error: 'API error - check explorer manually' });
-        }
-      } catch (err) {
-        setStatus({ found: null, error: 'Failed to fetch - check explorer manually' });
+    // Determine which network ID to send to API
+    const networkId = network?.id || selectedCoin;
+    const networkType = network?.type || selectedCoin;
+
+    try {
+      const response = await fetch(`/api/check-tx?txHash=${txid}&network=${networkId}`);
+
+      if (!response.ok) {
+        setStatus({ found: null, error: 'API error - check explorer manually' });
+        setLoading(false);
+        return;
       }
-    } else if (network?.type === 'evm') {
-      // EVM chains (ETH, BSC, etc.)
-      try {
-        const response = await fetch(`/api/check-tx?txHash=${txid}&network=${network.id}`);
-        if (response.ok) {
-          const result = await response.json();
-          if (!result.found) {
-            setStatus({ found: false, error: 'Transaction not found on blockchain' });
-          } else {
-            setStatus({
-              found: true,
-              confirmed: result.confirmed,
-              success: result.success,
-              from: result.from,
-              to: result.to,
-              value: result.value,
-              blockNumber: result.blockNumber,
-              symbol: network.symbol || 'ETH',
-              networkType: 'evm',
-            });
-          }
-        } else {
-          setStatus({ found: null, error: 'API error - check explorer manually' });
-        }
-      } catch (err) {
-        setStatus({ found: null, error: 'Failed to fetch - check explorer manually' });
+
+      const result = await response.json();
+
+      if (result.error) {
+        setStatus({ found: null, error: result.error + ' - check explorer manually' });
+        setLoading(false);
+        return;
       }
-    } else {
-      // For other networks, just provide the link
-      setStatus({ found: null, message: 'Open explorer to check status' });
+
+      if (!result.found) {
+        setStatus({ found: false, error: 'Transaction not found on blockchain' });
+        setLoading(false);
+        return;
+      }
+
+      // Build status object based on network type
+      const statusObj = {
+        found: true,
+        confirmed: result.confirmed,
+        success: result.success,
+        networkType: result.networkType || networkType,
+      };
+
+      // Add block info
+      if (result.blockHeight) statusObj.blockHeight = result.blockHeight;
+      if (result.blockNumber) statusObj.blockNumber = result.blockNumber;
+
+      // Add address info
+      if (result.from) statusObj.from = result.from;
+      if (result.to) statusObj.to = result.to;
+
+      // Add value info
+      if (result.value !== undefined && result.value !== null) {
+        statusObj.value = result.value;
+      }
+
+      // Add fee info
+      if (result.fee) statusObj.fee = result.fee;
+
+      // Add symbol for display
+      statusObj.symbol = network?.symbol || coin?.name || selectedCoin.toUpperCase();
+
+      setStatus(statusObj);
+
+    } catch (err) {
+      console.error('Check transaction error:', err);
+      setStatus({ found: null, error: 'Failed to fetch - check explorer manually' });
     }
 
     setLoading(false);
@@ -463,37 +467,37 @@ export default function App() {
                     />
                   )}
 
-                  {/* BTC specific */}
-                  {status.networkType === 'btc' && status.fee && (
+                  {/* Fee info for BTC/LTC/DOGE */}
+                  {status.fee && (
                     <InfoRow label="Fee" value={`${status.fee.toLocaleString()} sats`} />
                   )}
 
-                  {/* EVM specific */}
-                  {status.networkType === 'evm' && (
-                    <>
-                      <AddressRow
-                        label="From"
-                        address={status.from}
-                        onCopy={copyToClipboard}
-                        copiedField={copiedField}
-                        fieldName="from"
-                      />
-                      <AddressRow
-                        label="To"
-                        address={status.to}
-                        onCopy={copyToClipboard}
-                        copiedField={copiedField}
-                        fieldName="to"
-                      />
-                      {status.value > 0 && (
-                        <InfoRow
-                          label="Value"
-                          value={`${status.value.toFixed(6)} ${status.symbol}`}
-                          subValue={formatUSD(getUsdValue())}
-                          highlight
-                        />
-                      )}
-                    </>
+                  {/* From/To addresses (all networks that have them) */}
+                  {status.from && (
+                    <AddressRow
+                      label="From"
+                      address={status.from}
+                      onCopy={copyToClipboard}
+                      copiedField={copiedField}
+                      fieldName="from"
+                    />
+                  )}
+                  {status.to && (
+                    <AddressRow
+                      label="To"
+                      address={status.to}
+                      onCopy={copyToClipboard}
+                      copiedField={copiedField}
+                      fieldName="to"
+                    />
+                  )}
+                  {status.value !== undefined && status.value > 0 && (
+                    <InfoRow
+                      label="Value"
+                      value={`${status.value.toFixed(6)} ${status.symbol}`}
+                      subValue={formatUSD(getUsdValue())}
+                      highlight
+                    />
                   )}
                 </div>
 
